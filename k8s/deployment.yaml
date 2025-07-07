@@ -15,9 +15,25 @@ spec:
         app: quiz-app
     spec:
       containers:
-        - image: quay.io/openshift-pipeline/vote-api:latest
+        - image: quiz-app:latest
           imagePullPolicy: Always
           name: quiz-app
           ports:
             - containerPort: 8080
               protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3

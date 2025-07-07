@@ -17,6 +17,6 @@ spec:
       command: ["/bin/bash", "-c"]
       args:
         - |-
-          echo Applying manifests in $(inputs.params.manifest_dir) directory
-          oc apply -f $(inputs.params.manifest_dir)
+          echo Applying manifests in $(params.manifest_dir) directory
+          oc apply -f $(params.manifest_dir)
           echo -----------------------------------

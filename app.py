@@ -2,9 +2,25 @@ from flask import Flask, render_template, redirect, url_for, session, flash
 import requests
 import html
 import time
+import os
+import logging
 
 app = Flask(__name__)
-app.secret_key = '33a0f358127a9efa936a7743fc95392c'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Security headers
+@app.after_request
+def after_request(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data:; script-src 'self'"
+    return response
 
 # Fallback questions in case API fails
 FALLBACK_QUESTIONS = [
@@ -42,6 +58,8 @@ def handle_response_code(code):
 
 def fetch_questions(amount=5, retries=3, delay=2):
     API_URL = f"https://opentdb.com/api.php?amount={amount}&type=boolean"
+    logger.info(f"Fetching {amount} questions from API")
+    
     for attempt in range(retries):
         try:
             response = requests.get(API_URL, timeout=10)
@@ -54,14 +72,23 @@ def fetch_questions(amount=5, retries=3, delay=2):
                         'correct_answer': q['correct_answer']
                     } for q in data['results']
                 ]
+                logger.info(f"Successfully fetched {len(questions)} questions")
                 return questions
             else:
+                logger.warning(f"API returned response code: {data['response_code']}")
                 handle_response_code(data['response_code'])
         except requests.exceptions.RequestException as e:
+            logger.error(f"API request attempt {attempt + 1} failed: {e}")
             flash(f"Attempt {attempt + 1} failed: {e}")
-        time.sleep(delay)
+        except Exception as e:
+            logger.error(f"Unexpected error during API request: {e}")
+            flash(f"Unexpected error occurred: {e}")
+        
+        if attempt < retries - 1:  # Don't sleep on the last attempt
+            time.sleep(delay)
     
     # If all attempts fail, use fallback questions
+    logger.info("Using fallback questions due to API failure")
     flash("Using fallback questions due to API failure.")
     return FALLBACK_QUESTIONS[:amount]
 
@@ -105,6 +132,11 @@ def quiz():
 
 @app.route('/vote/<action>', methods=['POST'])
 def vote(action):
+    # Input validation
+    if action not in ['up', 'down']:
+        flash("Invalid action. Please use the provided buttons.")
+        return redirect(url_for('quiz'))
+    
     questions = session.get('questions')
     current_index = session.get('current_index', 0)
     user_answers = session.get('user_answers', [])
@@ -117,6 +149,11 @@ def vote(action):
         flash("Quiz already completed.")
         return redirect(url_for('summary'))
     
+    # Additional validation
+    if current_index < 0 or current_index >= len(questions):
+        flash("Invalid question index. Please start a new quiz.")
+        return redirect(url_for('index'))
+    
     current_question = questions[current_index]
     
     if action == 'up':
@@ -125,9 +162,6 @@ def vote(action):
     elif action == 'down':
         user_vote = 'False'  # Thumbs Down represents 'False'
         vote_message = "You disagreed 👎 to the last question."
-    else:
-        flash("Invalid action.")
-        return redirect(url_for('quiz'))
     
     # Append the user's vote to the answers list
     user_answers.append(user_vote)
@@ -182,5 +216,17 @@ def summary():
 def play_again():
     return redirect(url_for('index'))
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Kubernetes"""
+    return {'status': 'healthy', 'service': 'quiz-app'}, 200
+
+@app.route('/readiness')
+def readiness_check():
+    """Readiness check endpoint for Kubernetes"""
+    # You can add additional checks here (database connectivity, etc.)
+    return {'status': 'ready', 'service': 'quiz-app'}, 200
+
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(host='0.0.0.0', port=8080, debug=debug_mode)
