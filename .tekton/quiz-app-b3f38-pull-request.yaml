@@ -16,7 +16,7 @@ metadata:
     appstudio.openshift.io/component: quiz-app-b3f38
     pipelines.appstudio.openshift.io/type: build
   name: quiz-app-b3f38-on-pull-request
-  namespace: rh-ee-shumathu-tenant
+  namespace: default
 spec:
   params:
   - name: git-url
