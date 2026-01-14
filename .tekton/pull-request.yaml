@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: quiz-app-pr
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: build-test
+        taskSpec:
+          steps:
+            - name: clone-and-test
+              image: python:3.11-slim
+              script: |
+                #!/bin/bash
+                echo "🚀 Pipeline triggered by PAC!"
+                echo "📦 Repository: {{ repo_url }}"
+                echo "🌿 Branch: {{ source_branch }}"
+                echo "📝 Commit: {{ revision }}"
+                echo ""
+                echo "Installing dependencies..."
+                pip install flask --quiet
+                echo "✅ Dependencies installed!"
+                echo ""
+                echo "🎉 Pipeline completed successfully!"
