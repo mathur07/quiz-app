@@ -1,0 +1,37 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: quiz-app-fail-test
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: passing-task
+        taskSpec:
+          steps:
+            - name: pass
+              image: alpine
+              script: |
+                #!/bin/sh
+                echo "✅ This task passes!"
+                echo "Running some checks..."
+                sleep 2
+                echo "All good here!"
+      - name: failing-task
+        runAfter:
+          - passing-task
+        taskSpec:
+          steps:
+            - name: fail
+              image: alpine
+              script: |
+                #!/bin/sh
+                echo "🔍 Running critical tests..."
+                sleep 2
+                echo "❌ ERROR: Tests failed!"
+                echo "Expected: 42"
+                echo "Got: 41"
+                exit 1
