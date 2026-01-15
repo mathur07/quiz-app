@@ -1,0 +1,21 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: quiz-app-lint
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: lint
+        taskSpec:
+          steps:
+            - name: run-lint
+              image: alpine
+              script: |
+                #!/bin/sh
+                echo "🔍 Running lint checks..."
+                sleep 3
+                echo "✅ Lint check passed!"

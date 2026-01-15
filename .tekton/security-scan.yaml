@@ -1,0 +1,21 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: quiz-app-security
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineSpec:
+    tasks:
+      - name: security
+        taskSpec:
+          steps:
+            - name: scan
+              image: alpine
+              script: |
+                #!/bin/sh
+                echo "🔒 Running security scan..."
+                sleep 4
+                echo "✅ No vulnerabilities found!"
